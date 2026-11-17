@@ -1144,6 +1144,38 @@ export const PRODUCE_MODEL_CATALOG: Record<string, ProduceModelItem> = {
   },
 };
 
+// Canonical alias map for the 12-class YOLO11n model
+export const PRODUCE_ALIAS_MAP: Record<string, string> = {
+  beetroot: 'beet',
+  capsicum: 'bell pepper',
+  chilli: 'hot pepper',
+  'eggplant-brinjal-': 'eggplant',
+};
+
+export const toCanonicalProduceKey = (key: string): string => {
+  if (!key) return '';
+  const normalized = key.toLowerCase().trim();
+  return PRODUCE_ALIAS_MAP[normalized] || normalized;
+};
+
+/**
+ * 12-Class YOLO11n Mobile Model class order (exact index 0-11 mapping)
+ */
+export const NEW_PRODUCE_MODEL_CLASSES: readonly string[] = [
+  'apple',
+  'banana',
+  'beetroot',
+  'cabbage',
+  'capsicum',
+  'carrot',
+  'cauliflower',
+  'chilli',
+  'corn',
+  'cucumber',
+  'eggplant-brinjal-',
+  'garlic',
+] as const;
+
 /**
  * Normalizes user health profile from various potential shapes
  */
@@ -1462,7 +1494,9 @@ export const evaluateProduceItem = (
   servingWeightGrams?: number
 ): ProduceEvaluationResult => {
   const normalizedKey = (modelLabelOrId || '').toLowerCase().trim();
+  const canonicalKey = toCanonicalProduceKey(normalizedKey);
   const item =
+    PRODUCE_MODEL_CATALOG[canonicalKey] ||
     PRODUCE_MODEL_CATALOG[normalizedKey] ||
     Object.values(PRODUCE_MODEL_CATALOG).find(
       (p) => p.displayName.toLowerCase() === normalizedKey || p.id === normalizedKey
@@ -1603,7 +1637,8 @@ export const evaluateProduceItem = (
 export const isProduceClassSupported = (label: string): boolean => {
   if (!label) return false;
   const normalized = label.toLowerCase().trim();
-  return SUPPORTED_PRODUCE_CLASSES.includes(normalized);
+  const canonical = toCanonicalProduceKey(normalized);
+  return SUPPORTED_PRODUCE_CLASSES.includes(canonical) || Boolean(PRODUCE_MODEL_CATALOG[canonical]);
 };
 
 /**
@@ -1611,7 +1646,8 @@ export const isProduceClassSupported = (label: string): boolean => {
  */
 export const getProduceDefaultWeight = (label: string): number => {
   const normalized = (label || '').toLowerCase().trim();
-  const item = PRODUCE_MODEL_CATALOG[normalized];
+  const canonical = toCanonicalProduceKey(normalized);
+  const item = PRODUCE_MODEL_CATALOG[canonical] || PRODUCE_MODEL_CATALOG[normalized];
   return item ? item.defaultWeight_g : 100;
 };
 

@@ -22,6 +22,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTFLite } from '../../context/TFLiteContext';
 import {
   SUPPORTED_PRODUCE_CLASSES,
+  NEW_PRODUCE_MODEL_CLASSES,
   PRODUCE_MODEL_CATALOG,
   evaluateProduceItem,
   getProduceDefaultWeight,
@@ -347,19 +348,21 @@ export default function ProduceScanScreen({ navigation }) {
         const outputArray = new Float32Array(outputs[0]);
         const numElements = outputArray.length;
 
-        // Model Output Tensor Shape: [1, 51, 3549] (Transposed YOLO format)
-        if (numElements === 180999 || numElements % 3549 === 0) {
+        // Model Output Tensor Shape: [1, 16, 3549] for 12-class model, or [1, 51, 3549] for 47-class model
+        if (numElements === 56784 || numElements === 180999 || numElements % 3549 === 0) {
           const numAnchors = 3549;
+          const numClasses = numElements === 56784 ? 12 : (numElements === 180999 ? 47 : Math.max(1, Math.round(numElements / numAnchors) - 4));
+          const activeClasses = numClasses === 12 ? NEW_PRODUCE_MODEL_CLASSES : SUPPORTED_PRODUCE_CLASSES;
           const candBoxes = [];
           const candScores = [];
           const candClasses = [];
-          const classMaxScores = new Float32Array(47);
+          const classMaxScores = new Float32Array(numClasses);
 
           for (let i = 0; i < numAnchors; i++) {
             let anchorBestScore = 0;
             let anchorBestClass = -1;
 
-            for (let c = 0; c < 47; c++) {
+            for (let c = 0; c < numClasses; c++) {
               const rawScore = outputArray[(4 + c) * numAnchors + i];
               // Sigmoid activation for logits
               const score = 1.0 / (1.0 + Math.exp(-Math.max(-50, Math.min(50, rawScore))));
@@ -452,11 +455,11 @@ export default function ProduceScanScreen({ navigation }) {
 
           // Collect top candidates - STRICT >= 50% only
           const candidateList = [];
-          for (let c = 0; c < 47; c++) {
+          for (let c = 0; c < numClasses; c++) {
             if (classMaxScores[c] >= 0.50) {
               candidateList.push({
                 classIdx: c,
-                label: SUPPORTED_PRODUCE_CLASSES[c],
+                label: activeClasses[c],
                 score: Math.round(classMaxScores[c] * 100),
               });
             }
@@ -488,7 +491,7 @@ export default function ProduceScanScreen({ navigation }) {
             const bestScore = candScores[bestIdx];
             const bestClass = candClasses[bestIdx];
             const bestBox = candBoxes[bestIdx];
-            const label = SUPPORTED_PRODUCE_CLASSES[bestClass];
+            const label = activeClasses[bestClass];
 
             if (bestScore >= 0.50) {
               // Map unpadded frame box [x1, y1, x2, y2] to Camera view (cover mode)
@@ -657,7 +660,7 @@ export default function ProduceScanScreen({ navigation }) {
         {tfModel.state === 'loading' && (
           <View style={styles.modelStatusPill}>
             <ActivityIndicator size="small" color="#2ECC71" style={{ marginRight: 6 }} />
-            <Text style={styles.modelStatusText}>Loading 47-Class Vision Model...</Text>
+            <Text style={styles.modelStatusText}>Loading Vision Model...</Text>
           </View>
         )}
 
