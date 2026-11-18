@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+web-build/
+backend/
+docs/
+assets/best_old*.tflite
+*.mp4
+*.tar.gz
+*.zip
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
