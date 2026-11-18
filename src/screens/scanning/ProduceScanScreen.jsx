@@ -101,8 +101,10 @@ export default function ProduceScanScreen({ navigation }) {
     if (isConfirmed && selectedProduceKey) {
       const evalResult = evaluateProduceItem(selectedProduceKey, activeProfile, servingWeight);
       setEvaluation(evalResult);
+      arTracker.lockAnchor();
     } else if (!isConfirmed) {
       setEvaluation(null);
+      arTracker.clearAnchor();
     }
   }, [isConfirmed, selectedProduceKey, servingWeight, activeProfile]);
 
@@ -644,17 +646,16 @@ export default function ProduceScanScreen({ navigation }) {
           </View>
         )}
 
-        {/* Real-time Animated Bounding Box */}
-        <Animated.View style={[styles.detectedBox, animatedBoundingBoxStyle, isLocked && styles.detectedBoxLocked]}>
-          <View style={[
-            styles.detectedTag,
-            isLocked && styles.detectedTagLocked
-          ]}>
-            <Text style={styles.detectedTagText}>
-              {isLocked ? '🔒 Fixed' : currentItem.emoji} {currentItem.displayName} {detectedClassIdx >= 0 ? `[ID:${detectedClassIdx}]` : ''} {detectionConfidence >= 50 ? `(${detectionConfidence}%)` : ''}
-            </Text>
-          </View>
-        </Animated.View>
+        {/* Real-time Animated Bounding Box - Only shown while searching, hidden once locked so only AR Feedback Stamp appears on the object */}
+        {!isLocked && !isConfirmed && (
+          <Animated.View style={[styles.detectedBox, animatedBoundingBoxStyle]}>
+            <View style={styles.detectedTag}>
+              <Text style={styles.detectedTagText}>
+                {currentItem.emoji} {currentItem.displayName} {detectedClassIdx >= 0 ? `[ID:${detectedClassIdx}]` : ''} {detectionConfidence >= 50 ? `(${detectionConfidence}%)` : ''}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Live AR Feedback Stamp: Green Checkmark (✓) if Safe, Red Cross (✗) if Unsafe */}
         <ARFeedbackStamp
@@ -708,8 +709,8 @@ export default function ProduceScanScreen({ navigation }) {
           onPress={handleToggleLock}
           activeOpacity={0.8}
         >
-          <Feather name={isLocked ? 'lock' : 'unlock'} size={fs(14)} color="#FFF" style={{ marginRight: 4 }} />
-          <Text style={styles.lockButtonText}>{isLocked ? 'Locked' : 'Live Tracking'}</Text>
+          <Feather name={isLocked ? 'unlock' : 'lock'} size={fs(14)} color="#FFF" style={{ marginRight: 4 }} />
+          <Text style={styles.lockButtonText}>{isLocked ? 'Unlock' : 'Live Tracking'}</Text>
         </TouchableOpacity>
 
         {/* Quick Browse Tray Button */}
