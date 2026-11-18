@@ -36,6 +36,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# obsolete / non-app heavy files
+assets/models/best_old*
+backend/
+
 # generated native folders
 /ios
 /android
