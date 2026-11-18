@@ -4,7 +4,9 @@ dist/
 web-build/
 backend/
 docs/
-assets/best_old*.tflite
+assets/models/best_old*
+assets/models/best_old.tflite
+assets/models/best_old_47class.tflite
 *.mp4
 *.tar.gz
 *.zip
