@@ -28,6 +28,8 @@ import {
   getProduceDefaultWeight,
 } from '../../services/produceRuleEngine';
 import { logProduceCorrection } from '../../services/produceCorrectionLogger';
+import { useARTracker } from '../../hooks/useARTracker';
+import ARFeedbackStamp from '../../components/scanning/ARFeedbackStamp';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CAMERA_HEIGHT = hp(40);
@@ -40,6 +42,9 @@ export default function ProduceScanScreen({ navigation }) {
   const { tfModel } = useTFLite();
   const model = tfModel.state === 'loaded' ? tfModel.model : undefined;
   const { activeProfile } = useAuth();
+
+  // 6-DoF Sensor Motion Tracker for live AR Verdict Decal
+  const arTracker = useARTracker(SCREEN_WIDTH, CAMERA_HEIGHT);
 
   // Hardware GPU Resizer to convert camera frames directly into TRUE 24-bit RGB (416x416 planar)
   const resizer = useResizer({
@@ -120,6 +125,7 @@ export default function ProduceScanScreen({ navigation }) {
     isLockedRef.current = true;
     isLockedShared.value = true;
     highAccuracyStreak.current = 0;
+    arTracker.lockAnchor();
 
     // If the user corrected the label, log it along with the snapshot for future model training!
     const predictedLabel = detectedPrediction?.label || selectedProduceKey;
@@ -152,6 +158,7 @@ export default function ProduceScanScreen({ navigation }) {
 
   // Full clean reset for scanning the next produce item
   const handleResetScan = useCallback(() => {
+    arTracker.clearAnchor();
     setIsConfirmed(false);
     setIsLocked(false);
     isConfirmedRef.current = false;
@@ -648,6 +655,17 @@ export default function ProduceScanScreen({ navigation }) {
             </Text>
           </View>
         </Animated.View>
+
+        {/* Live AR Feedback Stamp: Green Checkmark (✓) if Safe, Red Cross (✗) if Unsafe */}
+        <ARFeedbackStamp
+          visible={Boolean(evaluation && (isConfirmed || isLocked))}
+          isSafe={evaluation?.verdict === 'SAFE'}
+          panAnim={arTracker.panAnim}
+          rollAnim={arTracker.rollAnim}
+          containerWidth={SCREEN_WIDTH}
+          containerHeight={CAMERA_HEIGHT}
+          size={110}
+        />
 
         {/* Correction Feedback Toast Banner */}
         {correctionToast && (

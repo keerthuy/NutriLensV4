@@ -23,6 +23,8 @@ import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { NutritionScanner } from '../../components/scanning/NutritionScanner';
 import { fuseOcrResults } from '../../services/ml/ocrFusion';
 import { normalizeOcrIngredients } from '../../services/nutrition/ingredientDatabase';
+import { useARTracker } from '../../hooks/useARTracker';
+import ARFeedbackStamp from '../../components/scanning/ARFeedbackStamp';
 
 // Adapter to map AuthContext user profile format to Health Engine format
 const mapAuthProfileToHealthProfile = (authProfile) => {
@@ -74,6 +76,9 @@ const ScanScreen = ({ navigation }) => {
   const [newNutrientUnit, setNewNutrientUnit] = useState('g');
   const [packageWeightInput, setPackageWeightInput] = useState('1000');
   const [wholePackageEvalResult, setWholePackageEvalResult] = useState(null);
+
+  // 6-DoF Sensor Motion Tracker for live AR Verdict Decal
+  const arTracker = useARTracker(wp(100), hp(34));
 
   const scannerRef = useRef(null);
   const isCapturingRef = useRef(false);
@@ -506,6 +511,7 @@ const ScanScreen = ({ navigation }) => {
       setIsAnalyzing(false);
       setIsCameraActive(false);
       setResult({ food: scannedFood, evaluation, evaluationServing, isCalculatedPerServing });
+      arTracker.lockAnchor();
 
       // Low-Nutrient Quality Scan Re-Scan Alert (< 3 Nutrients)
       const totalExtractedCount = per100gItems.length + perServingItems.length;
@@ -530,6 +536,7 @@ const ScanScreen = ({ navigation }) => {
   };
 
   const resetScanner = () => {
+    arTracker.clearAnchor();
     setResult(null);
     setWholePackageEvalResult(null);
     setPackageWeightInput('1000');
@@ -544,11 +551,48 @@ const ScanScreen = ({ navigation }) => {
 
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.resultContainer}>
-          <Text style={styles.title}>Analysis Complete</Text>
+        {/* Top Half: Live AR Camera Viewport with ✓ / ✗ AR Feedback Stamp */}
+        <View style={styles.arCameraBox}>
+          {hasPermission ? (
+            <NutritionScanner 
+              ref={scannerRef}
+              isActive={true}
+              onStableDetection={() => {}}
+            />
+          ) : (
+            <View style={styles.arCameraPlaceholder}>
+              <Feather name="camera" size={fs(32)} color="#38BDF8" />
+              <Text style={styles.arPlaceholderText}>AR Food Lens View</Text>
+            </View>
+          )}
+
+          {/* AR Decal Stamp (✓ Green if safe, ✗ Red if unsafe) directly on camera view */}
+          <ARFeedbackStamp
+            visible={true}
+            isSafe={isMainSafe}
+            panAnim={arTracker.panAnim}
+            rollAnim={arTracker.rollAnim}
+            containerWidth={wp(100)}
+            containerHeight={hp(34)}
+            size={110}
+          />
+
+          {/* Floating Re-Scan Button */}
+          <TouchableOpacity 
+            style={styles.arRescanFloatingBtn} 
+            onPress={resetScanner}
+            activeOpacity={0.85}
+          >
+            <Feather name="refresh-cw" size={fs(13)} color="#FFFFFF" style={{ marginRight: 5 }} />
+            <Text style={styles.arRescanFloatingText}>Re-Scan</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Half: Detailed Results Under Camera */}
+        <View style={styles.resultContainerUnderCamera}>
           <View style={styles.card}>
             <View style={[styles.verdictHeader, { backgroundColor: verdictColor }]}>
-              <Feather name={verdictIcon} size={fs(36)} color="#FFF" style={{ marginBottom: hp(1) }} />
+              <Feather name={verdictIcon} size={fs(32)} color="#FFF" style={{ marginBottom: hp(0.5) }} />
               <Text style={styles.verdictText}>{verdictTitle}</Text>
             </View>
             <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -1023,6 +1067,51 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: typography.fonts.semiBold,
     marginTop: hp(1)
+  },
+  arCameraBox: {
+    height: hp(34),
+    width: wp(100),
+    backgroundColor: '#0F172A',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  arCameraPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+  },
+  arPlaceholderText: {
+    color: '#94A3B8',
+    fontFamily: typography.fonts.semiBold,
+    fontSize: fs(13),
+    marginTop: 8,
+  },
+  arRescanFloatingBtn: {
+    position: 'absolute',
+    top: hp(2),
+    right: wp(4),
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    zIndex: 60,
+  },
+  arRescanFloatingText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+    fontSize: fs(11),
+  },
+  resultContainerUnderCamera: {
+    flex: 1,
+    paddingHorizontal: wp(4),
+    paddingTop: hp(1.5),
+    paddingBottom: hp(2),
+    alignItems: 'center',
   },
   resultContainer: {
     flex: 1,

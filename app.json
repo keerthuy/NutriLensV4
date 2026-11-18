@@ -25,7 +25,12 @@
       "package": "com.example.nutrilens",
       "permissions": [
         "android.permission.CAMERA",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
